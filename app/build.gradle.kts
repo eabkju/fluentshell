@@ -60,6 +60,8 @@ dependencies {
     implementation(project(":feature:settings"))
     implementation(project(":feature:notifications"))
 
+    implementation(libs.androidx.room.runtime)
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
