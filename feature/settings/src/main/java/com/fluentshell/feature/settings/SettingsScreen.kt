@@ -56,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -451,7 +452,8 @@ fun PersonalizationSettingsPage(
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FluentAccentList.forEach { color ->
-                        val isSelected = (userPreferences.accentColor and 0xFFFFFFFFL) == (color.value.toLong() and 0xFFFFFFFFL)
+                        val colorArgb = color.toArgb().toLong() and 0xFFFFFFFFL
+                        val isSelected = (userPreferences.accentColor and 0xFFFFFFFFL) == colorArgb
                         Box(
                             modifier = Modifier
                                 .size(34.dp)
@@ -463,7 +465,7 @@ fun PersonalizationSettingsPage(
                                     shape = CircleShape
                                 )
                                 .clickable {
-                                    scope.launch { themeRepository.setAccentColor(color.value.toLong()) }
+                                    scope.launch { themeRepository.setAccentColor(colorArgb) }
                                 }
                         )
                     }

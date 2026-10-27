@@ -8,7 +8,10 @@ import androidx.activity.enableEdgeToEdge
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        try {
+            enableEdgeToEdge()
+        } catch (_: Exception) {
+        }
         setContent {
             MainShellScreen(app = FluentApplication.instance, initialOpenSettings = true)
         }

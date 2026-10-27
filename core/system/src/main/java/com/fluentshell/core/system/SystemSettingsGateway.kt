@@ -69,17 +69,25 @@ class SystemSettingsGateway(private val context: Context) {
     // --- SOUND / VOLUME ---
     fun getMediaVolume(): Float {
         if (audioManager == null) return 0.5f
-        val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-        val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        return if (max > 0) current.toFloat() / max else 0f
+        return try {
+            val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            if (max > 0) current.toFloat() / max else 0f
+        } catch (_: Exception) {
+            0.5f
+        }
     }
 
     fun setMediaVolume(fraction: Float): SettingResult {
         if (audioManager == null) return SettingResult.Direct("Audio service unavailable")
-        val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        val volume = (fraction * max).roundToInt().coerceIn(0, max)
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
-        return SettingResult.Direct("Volume set to ${(fraction * 100).toInt()}%")
+        return try {
+            val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val volume = (fraction * max).roundToInt().coerceIn(0, max)
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+            SettingResult.Direct("Volume set to ${(fraction * 100).toInt()}%")
+        } catch (e: Exception) {
+            SettingResult.Direct("Volume change error: ${e.message}")
+        }
     }
 
     // --- SCREEN TIMEOUT ---
@@ -165,8 +173,13 @@ class SystemSettingsGateway(private val context: Context) {
 
     // --- BATTERY STATUS ---
     fun getBatteryLevel(): Int {
-        val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-        return bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
+        return try {
+            val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+            val level = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
+            if (level in 0..100) level else 100
+        } catch (_: Exception) {
+            100
+        }
     }
 
     // --- DEEP LINKS ---

@@ -33,7 +33,11 @@ class FluentApplication : Application() {
         super.onCreate()
         instance = this
 
-        database = FluentDatabase.getInstance(this)
+        database = try {
+            FluentDatabase.getInstance(this)
+        } catch (_: Exception) {
+            androidx.room.Room.inMemoryDatabaseBuilder(this, FluentDatabase::class.java).build()
+        }
         themeRepository = ThemePreferencesRepository(this)
         appRepository = AppRepository(this, database.fluentDao(), applicationScope)
         systemSettingsGateway = SystemSettingsGateway(this)

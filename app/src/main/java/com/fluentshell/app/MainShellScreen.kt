@@ -100,7 +100,7 @@ fun MainShellScreen(
         ThemeMode.DARK -> true
         ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
     }
-    val accentColor = Color(userPreferences.accentColor.toULong())
+    val accentColor = Color(userPreferences.accentColor)
 
     FluentTheme(
         darkTheme = darkTheme,
@@ -308,6 +308,7 @@ fun FirstRunWizardDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .androidx.compose.foundation.verticalScroll(androidx.compose.foundation.rememberScrollState())
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {

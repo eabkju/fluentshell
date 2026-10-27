@@ -53,63 +53,34 @@ class AppRepository(
 
     fun refreshApps() {
         scope.launch(ioDispatcher) {
-            val list = queryInstalledApps()
-            _rawApps.value = list
+            try {
+                val list = queryInstalledApps()
+                _rawApps.value = list
+            } catch (_: Exception) {
+            }
         }
     }
 
     private suspend fun queryInstalledApps(): List<AppInfo> = withContext(ioDispatcher) {
-        val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
-        val userHandle = Process.myUserHandle()
         val apps = mutableListOf<AppInfo>()
+        val seenPackages = mutableSetOf<String>()
 
-        if (launcherApps != null) {
-            try {
-                val activities = launcherApps.getActivityList(null, userHandle)
-                for (activity in activities) {
-                    val pkgName = activity.applicationInfo.packageName
-                    if (pkgName == context.packageName) continue // Skip self in launcher list
-
-                    val label = activity.label?.toString() ?: pkgName
-                    val icon = try {
-                        activity.getBadgedIcon(0)
-                    } catch (_: Exception) {
-                        null
-                    }
-                    val installTime = try {
-                        context.packageManager.getPackageInfo(pkgName, 0).firstInstallTime
-                    } catch (_: Exception) {
-                        0L
-                    }
-
-                    apps.add(
-                        AppInfo(
-                            packageName = pkgName,
-                            activityName = activity.name,
-                            label = label,
-                            icon = icon,
-                            installTime = installTime
-                        )
-                    )
-                }
-            } catch (_: Exception) {
-                // Fallback to PackageManager
-            }
-        }
-
-        if (apps.isEmpty()) {
+        // 1. Try standard PackageManager queryIntentActivities with flag 0
+        try {
             val intent = Intent(Intent.ACTION_MAIN, null).apply {
                 addCategory(Intent.CATEGORY_LAUNCHER)
             }
-            val resolveInfos = context.packageManager.queryIntentActivities(
-                intent,
-                PackageManager.MATCH_ALL
-            )
+            val resolveInfos = context.packageManager.queryIntentActivities(intent, 0)
             for (info in resolveInfos) {
-                val pkgName = info.activityInfo.packageName
-                if (pkgName == context.packageName) continue
+                val pkgName = info.activityInfo?.packageName ?: continue
+                if (pkgName == context.packageName || seenPackages.contains(pkgName)) continue
+                seenPackages.add(pkgName)
 
-                val label = info.loadLabel(context.packageManager).toString()
+                val label = try {
+                    info.loadLabel(context.packageManager)?.toString() ?: pkgName
+                } catch (_: Exception) {
+                    pkgName
+                }
                 val icon = try {
                     info.loadIcon(context.packageManager)
                 } catch (_: Exception) {
@@ -124,6 +95,40 @@ class AppRepository(
                         icon = icon
                     )
                 )
+            }
+        } catch (_: Exception) {
+        }
+
+        // 2. If empty, fallback to LauncherApps
+        if (apps.isEmpty()) {
+            try {
+                val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
+                val userHandle = Process.myUserHandle()
+                if (launcherApps != null) {
+                    val activities = launcherApps.getActivityList(null, userHandle)
+                    for (activity in activities) {
+                        val pkgName = activity.applicationInfo.packageName
+                        if (pkgName == context.packageName || seenPackages.contains(pkgName)) continue
+                        seenPackages.add(pkgName)
+
+                        val label = activity.label?.toString() ?: pkgName
+                        val icon = try {
+                            activity.getBadgedIcon(0)
+                        } catch (_: Exception) {
+                            null
+                        }
+
+                        apps.add(
+                            AppInfo(
+                                packageName = pkgName,
+                                activityName = activity.name,
+                                label = label,
+                                icon = icon
+                            )
+                        )
+                    }
+                }
+            } catch (_: Exception) {
             }
         }
 
