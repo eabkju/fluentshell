@@ -1,4 +1,4 @@
-package com.fluentshell.core.design.components
+package com.fluentshell.feature.desktop
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.fluentshell.core.data.model.AppInfo
+import com.fluentshell.core.design.components.FluentWindow
 import com.fluentshell.core.design.theme.LocalFluentColors
 
 @Composable

@@ -56,7 +56,7 @@ import com.fluentshell.core.data.repository.TaskbarAlignment
 import com.fluentshell.core.data.repository.ThemeMode
 import com.fluentshell.core.data.repository.UserPreferences
 import com.fluentshell.core.data.repository.WallpaperPreset
-import com.fluentshell.core.design.components.DesktopFolderWindow
+import com.fluentshell.feature.desktop.DesktopFolderWindow
 import com.fluentshell.core.design.components.MicaSurface
 import com.fluentshell.core.design.theme.FluentTheme
 import com.fluentshell.core.design.theme.LocalFluentColors
