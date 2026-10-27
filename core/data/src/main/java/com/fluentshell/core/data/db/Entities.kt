@@ -23,3 +23,16 @@ data class DesktopIconEntity(
     val gridX: Int,
     val gridY: Int
 )
+
+@Entity(tableName = "desktop_items")
+data class DesktopItemEntity(
+    @PrimaryKey
+    val id: String,
+    val title: String,
+    val packageName: String = "",
+    val activityName: String = "",
+    val isFolder: Boolean = false,
+    val folderItems: String = "", // Comma-separated package names
+    val posX: Float = 0f,
+    val posY: Float = 0f
+)

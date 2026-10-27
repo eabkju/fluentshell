@@ -55,10 +55,12 @@ import com.fluentshell.core.data.model.AppInfo
 import com.fluentshell.core.data.repository.TaskbarAlignment
 import com.fluentshell.core.data.repository.ThemeMode
 import com.fluentshell.core.data.repository.UserPreferences
+import com.fluentshell.core.data.repository.WallpaperPreset
+import com.fluentshell.core.design.components.DesktopFolderWindow
 import com.fluentshell.core.design.components.MicaSurface
 import com.fluentshell.core.design.theme.FluentTheme
 import com.fluentshell.core.design.theme.LocalFluentColors
-import com.fluentshell.core.design.theme.WindowsBlue
+import com.fluentshell.feature.desktop.DesktopFolder
 import com.fluentshell.feature.desktop.DesktopScreen
 import com.fluentshell.feature.notifications.ActionCenterFlyout
 import com.fluentshell.feature.notifications.QuickSettingsFlyout
@@ -67,6 +69,7 @@ import com.fluentshell.feature.settings.SettingsScreen
 import com.fluentshell.feature.start.StartMenu
 import com.fluentshell.feature.taskbar.FluentTaskbar
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 @Composable
 fun MainShellScreen(
@@ -82,6 +85,7 @@ fun MainShellScreen(
             accentColor = 0xFF0078D4,
             isMicaBlurEnabled = true,
             taskbarAlignment = TaskbarAlignment.CENTER,
+            wallpaperPreset = WallpaperPreset.BLOOM_DARK.id,
             wallpaperUri = null,
             isFirstRun = false
         )
@@ -95,7 +99,16 @@ fun MainShellScreen(
     var isQuickSettingsOpen by remember { mutableStateOf(false) }
     var isActionCenterOpen by remember { mutableStateOf(false) }
     var isSettingsOpen by remember { mutableStateOf(initialOpenSettings) }
+    var settingsCategory by remember { mutableStateOf("SYSTEM") }
     var showFirstRunWizard by remember(userPreferences.isFirstRun) { mutableStateOf(userPreferences.isFirstRun) }
+
+    // Desktop Folders
+    var desktopFolders by remember {
+        mutableStateOf(
+            listOf(DesktopFolder(id = "folder_1", name = "Tools"))
+        )
+    }
+    var activeFolder by remember { mutableStateOf<DesktopFolder?>(null) }
 
     val darkTheme = when (userPreferences.themeMode) {
         ThemeMode.LIGHT -> false
@@ -115,7 +128,9 @@ fun MainShellScreen(
             val intent = context.packageManager.getLaunchIntentForPackage(appInfo.packageName)
             if (intent != null) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
+                try {
+                    context.startActivity(intent)
+                } catch (_: Exception) {}
             }
         }
 
@@ -134,14 +149,28 @@ fun MainShellScreen(
                     onClick = dismissAllFlyouts
                 )
         ) {
-            // Desktop Area
+            // Desktop Area (with right-click, draggable apps/folders, flicker-free wallpaper)
             DesktopScreen(
                 apps = allApps,
+                folders = desktopFolders,
+                wallpaperPreset = userPreferences.wallpaperPreset,
                 wallpaperUri = userPreferences.wallpaperUri,
                 onAppClick = launchApp,
-                onRefresh = { app.appRepository.refreshApps() },
-                onOpenSettings = {
+                onFolderClick = { folder ->
                     dismissAllFlyouts()
+                    activeFolder = folder
+                },
+                onCreateFolder = {
+                    val newFolder = DesktopFolder(
+                        id = UUID.randomUUID().toString(),
+                        name = "New folder ${desktopFolders.size + 1}"
+                    )
+                    desktopFolders = desktopFolders + newFolder
+                },
+                onRefresh = { app.appRepository.refreshApps() },
+                onOpenSettings = { category ->
+                    dismissAllFlyouts()
+                    settingsCategory = category
                     isSettingsOpen = true
                 },
                 modifier = Modifier
@@ -183,6 +212,7 @@ fun MainShellScreen(
                     systemSettingsGateway = app.systemSettingsGateway,
                     onOpenFullSettings = {
                         isQuickSettingsOpen = false
+                        settingsCategory = "SYSTEM"
                         isSettingsOpen = true
                     }
                 )
@@ -216,7 +246,18 @@ fun MainShellScreen(
                 )
             }
 
-            // Full Settings Window (Control Panel)
+            // Desktop Folder Window (with Minimize, Maximize, Close)
+            activeFolder?.let { folder ->
+                DesktopFolderWindow(
+                    folderName = folder.name,
+                    isOpen = true,
+                    apps = allApps.take(8),
+                    onAppClick = launchApp,
+                    onClose = { activeFolder = null }
+                )
+            }
+
+            // Full Settings Window (with Minimize, Maximize, Close)
             AnimatedVisibility(
                 visible = isSettingsOpen,
                 enter = fadeIn(),
@@ -227,6 +268,7 @@ fun MainShellScreen(
                     userPreferences = userPreferences,
                     themeRepository = app.themeRepository,
                     systemSettingsGateway = app.systemSettingsGateway,
+                    initialCategory = settingsCategory,
                     onClose = { isSettingsOpen = false }
                 )
             }
@@ -243,7 +285,7 @@ fun MainShellScreen(
                 )
             }
 
-            // Taskbar (Bottom)
+            // Windows 11 Taskbar (Bottom)
             FluentTaskbar(
                 alignment = userPreferences.taskbarAlignment,
                 pinnedApps = allApps.filter { it.isPinnedToTaskbar },
@@ -340,15 +382,17 @@ fun FirstRunWizardDialog(
                 // Set Default Home Button
                 Button(
                     onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && roleManager?.isRoleAvailable(RoleManager.ROLE_HOME) == true) {
-                            val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME)
-                            roleLauncher.launch(intent)
-                        } else {
-                            val intent = Intent(Settings.ACTION_HOME_SETTINGS).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && roleManager?.isRoleAvailable(RoleManager.ROLE_HOME) == true) {
+                                val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME)
+                                roleLauncher.launch(intent)
+                            } else {
+                                val intent = Intent(Settings.ACTION_HOME_SETTINGS).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                                context.startActivity(intent)
                             }
-                            context.startActivity(intent)
-                        }
+                        } catch (_: Exception) {}
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
@@ -367,7 +411,7 @@ fun FirstRunWizardDialog(
                         val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         }
-                        context.startActivity(intent)
+                        try { context.startActivity(intent) } catch (_: Exception) {}
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.cardSurface),
@@ -387,7 +431,7 @@ fun FirstRunWizardDialog(
                             data = android.net.Uri.parse("package:${context.packageName}")
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         }
-                        context.startActivity(intent)
+                        try { context.startActivity(intent) } catch (_: Exception) {}
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.cardSurface),

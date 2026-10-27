@@ -6,8 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [PinnedAppEntity::class, DesktopIconEntity::class],
-    version = 1,
+    entities = [PinnedAppEntity::class, DesktopIconEntity::class, DesktopItemEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class FluentDatabase : RoomDatabase() {

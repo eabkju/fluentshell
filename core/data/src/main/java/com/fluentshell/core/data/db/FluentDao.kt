@@ -29,4 +29,16 @@ interface FluentDao {
 
     @Query("DELETE FROM desktop_icons WHERE packageName = :packageName")
     suspend fun deleteDesktopIconsByPackage(packageName: String)
+
+    @Query("SELECT * FROM desktop_items")
+    fun getDesktopItems(): Flow<List<DesktopItemEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDesktopItem(item: DesktopItemEntity)
+
+    @Delete
+    suspend fun deleteDesktopItem(item: DesktopItemEntity)
+
+    @Query("DELETE FROM desktop_items WHERE id = :id")
+    suspend fun deleteDesktopItemById(id: String)
 }

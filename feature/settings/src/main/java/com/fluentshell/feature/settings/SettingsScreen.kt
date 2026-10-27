@@ -26,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BrightnessMedium
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.FlashlightOn
@@ -35,11 +34,11 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -55,19 +54,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fluentshell.core.data.repository.TaskbarAlignment
 import com.fluentshell.core.data.repository.ThemeMode
 import com.fluentshell.core.data.repository.ThemePreferencesRepository
 import com.fluentshell.core.data.repository.UserPreferences
+import com.fluentshell.core.data.repository.WallpaperPreset
 import com.fluentshell.core.design.components.FluentCard
-import com.fluentshell.core.design.components.MicaSurface
+import com.fluentshell.core.design.components.FluentWindow
 import com.fluentshell.core.design.theme.FluentAccentList
 import com.fluentshell.core.design.theme.LocalFluentColors
 import com.fluentshell.core.system.SettingResult
@@ -84,128 +86,99 @@ fun SettingsScreen(
     themeRepository: ThemePreferencesRepository,
     systemSettingsGateway: SystemSettingsGateway,
     onClose: () -> Unit,
+    initialCategory: String = "SYSTEM",
     modifier: Modifier = Modifier
 ) {
     val colors = LocalFluentColors.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var selectedCategory by remember { mutableStateOf(SettingsCategory.SYSTEM) }
+    var selectedCategory by remember(initialCategory) {
+        val cat = when (initialCategory.uppercase()) {
+            "DISPLAY" -> SettingsCategory.SYSTEM
+            "PERSONALIZATION" -> SettingsCategory.PERSONALIZATION
+            "NETWORK" -> SettingsCategory.NETWORK
+            "BLUETOOTH" -> SettingsCategory.BLUETOOTH
+            "APPS" -> SettingsCategory.APPS
+            else -> SettingsCategory.SYSTEM
+        }
+        mutableStateOf(cat)
+    }
 
-    MicaSurface(
+    FluentWindow(
+        title = "Settings",
+        icon = Icons.Default.Settings,
+        isOpen = true,
+        onClose = onClose,
+        onMinimize = onClose,
+        initialWidth = 840,
+        initialHeight = 600,
         modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        shape = RoundedCornerShape(10.dp),
-        elevation = 16.dp
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Window Title Bar
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+        Row(modifier = Modifier.fillMaxSize()) {
+            // Left Navigation Sidebar
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .background(colors.cardSurface)
-                    .padding(horizontal = 14.dp)
+                    .width(230.dp)
+                    .fillMaxHeight()
+                    .background(colors.micaBase.copy(alpha = 0.5f))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = null,
-                    tint = colors.accent,
-                    modifier = Modifier.size(18.dp)
+                SettingsNavItem(
+                    title = "System",
+                    icon = Icons.Default.Computer,
+                    isSelected = selectedCategory == SettingsCategory.SYSTEM,
+                    onClick = { selectedCategory = SettingsCategory.SYSTEM }
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Settings",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = colors.textPrimary
+                SettingsNavItem(
+                    title = "Network & internet",
+                    icon = Icons.Default.Wifi,
+                    isSelected = selectedCategory == SettingsCategory.NETWORK,
+                    onClick = { selectedCategory = SettingsCategory.NETWORK }
+                )
+                SettingsNavItem(
+                    title = "Bluetooth & devices",
+                    icon = Icons.Default.Bluetooth,
+                    isSelected = selectedCategory == SettingsCategory.BLUETOOTH,
+                    onClick = { selectedCategory = SettingsCategory.BLUETOOTH }
+                )
+                SettingsNavItem(
+                    title = "Personalization",
+                    icon = Icons.Default.ColorLens,
+                    isSelected = selectedCategory == SettingsCategory.PERSONALIZATION,
+                    onClick = { selectedCategory = SettingsCategory.PERSONALIZATION }
+                )
+                SettingsNavItem(
+                    title = "Apps",
+                    icon = Icons.Default.Apps,
+                    isSelected = selectedCategory == SettingsCategory.APPS,
+                    onClick = { selectedCategory = SettingsCategory.APPS }
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = colors.textPrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
+                SettingsNavItem(
+                    title = "About FluentShell",
+                    icon = Icons.Default.Info,
+                    isSelected = selectedCategory == SettingsCategory.ABOUT,
+                    onClick = { selectedCategory = SettingsCategory.ABOUT }
+                )
             }
 
-            // Dual Pane Body
-            Row(
+            // Right Content Area
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
                     .weight(1f)
+                    .fillMaxHeight()
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
-                // Left Navigation Sidebar
-                Column(
-                    modifier = Modifier
-                        .width(240.dp)
-                        .fillMaxHeight()
-                        .background(colors.micaBase.copy(alpha = 0.5f))
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    SettingsNavItem(
-                        title = "System",
-                        icon = Icons.Default.Computer,
-                        isSelected = selectedCategory == SettingsCategory.SYSTEM,
-                        onClick = { selectedCategory = SettingsCategory.SYSTEM }
-                    )
-                    SettingsNavItem(
-                        title = "Network & internet",
-                        icon = Icons.Default.Wifi,
-                        isSelected = selectedCategory == SettingsCategory.NETWORK,
-                        onClick = { selectedCategory = SettingsCategory.NETWORK }
-                    )
-                    SettingsNavItem(
-                        title = "Bluetooth & devices",
-                        icon = Icons.Default.Bluetooth,
-                        isSelected = selectedCategory == SettingsCategory.BLUETOOTH,
-                        onClick = { selectedCategory = SettingsCategory.BLUETOOTH }
-                    )
-                    SettingsNavItem(
-                        title = "Personalization",
-                        icon = Icons.Default.ColorLens,
-                        isSelected = selectedCategory == SettingsCategory.PERSONALIZATION,
-                        onClick = { selectedCategory = SettingsCategory.PERSONALIZATION }
-                    )
-                    SettingsNavItem(
-                        title = "Apps",
-                        icon = Icons.Default.Apps,
-                        isSelected = selectedCategory == SettingsCategory.APPS,
-                        onClick = { selectedCategory = SettingsCategory.APPS }
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    SettingsNavItem(
-                        title = "About FluentShell",
-                        icon = Icons.Default.Info,
-                        isSelected = selectedCategory == SettingsCategory.ABOUT,
-                        onClick = { selectedCategory = SettingsCategory.ABOUT }
-                    )
-                }
-
-                // Right Content Area
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(24.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    when (selectedCategory) {
-                        SettingsCategory.SYSTEM -> SystemSettingsPage(systemSettingsGateway, context)
-                        SettingsCategory.NETWORK -> NetworkSettingsPage(systemSettingsGateway, context)
-                        SettingsCategory.BLUETOOTH -> BluetoothSettingsPage(systemSettingsGateway, context)
-                        SettingsCategory.PERSONALIZATION -> PersonalizationSettingsPage(userPreferences, themeRepository, scope)
-                        SettingsCategory.APPS -> AppsSettingsPage(systemSettingsGateway, context)
-                        SettingsCategory.ABOUT -> AboutSettingsPage()
-                    }
+                when (selectedCategory) {
+                    SettingsCategory.SYSTEM -> SystemSettingsPage(systemSettingsGateway, context)
+                    SettingsCategory.NETWORK -> NetworkSettingsPage(systemSettingsGateway, context)
+                    SettingsCategory.BLUETOOTH -> BluetoothSettingsPage(systemSettingsGateway, context)
+                    SettingsCategory.PERSONALIZATION -> PersonalizationSettingsPage(userPreferences, themeRepository, scope)
+                    SettingsCategory.APPS -> AppsSettingsPage(systemSettingsGateway, context)
+                    SettingsCategory.ABOUT -> AboutSettingsPage()
                 }
             }
         }
@@ -277,7 +250,7 @@ fun SystemSettingsPage(
                         brightness = it
                         val res = gateway.setBrightness(it)
                         if (res is SettingResult.NeedsPermission) {
-                            context.startActivity(res.intent)
+                            try { context.startActivity(res.intent) } catch (_: Exception) {}
                         }
                     },
                     colors = SliderDefaults.colors(thumbColor = colors.accent, activeTrackColor = colors.accent)
@@ -327,7 +300,7 @@ fun SystemSettingsPage(
                         autoRotate = it
                         val res = gateway.setAutoRotation(it)
                         if (res is SettingResult.NeedsPermission) {
-                            context.startActivity(res.intent)
+                            try { context.startActivity(res.intent) } catch (_: Exception) {}
                         }
                     },
                     colors = SwitchDefaults.colors(checkedThumbColor = colors.accent)
@@ -376,7 +349,9 @@ fun NetworkSettingsPage(gateway: SystemSettingsGateway, context: Context) {
             icon = Icons.Default.Wifi,
             onClick = {
                 val res = gateway.openWifiSettings()
-                if (res is SettingResult.DeepLink) context.startActivity(res.intent)
+                if (res is SettingResult.DeepLink) {
+                    try { context.startActivity(res.intent) } catch (_: Exception) {}
+                }
             }
         )
 
@@ -386,7 +361,9 @@ fun NetworkSettingsPage(gateway: SystemSettingsGateway, context: Context) {
             icon = Icons.Default.OpenInNew,
             onClick = {
                 val res = gateway.openAirplaneModeSettings()
-                if (res is SettingResult.DeepLink) context.startActivity(res.intent)
+                if (res is SettingResult.DeepLink) {
+                    try { context.startActivity(res.intent) } catch (_: Exception) {}
+                }
             }
         )
     }
@@ -405,7 +382,9 @@ fun BluetoothSettingsPage(gateway: SystemSettingsGateway, context: Context) {
             icon = Icons.Default.Bluetooth,
             onClick = {
                 val res = gateway.openBluetoothSettings()
-                if (res is SettingResult.DeepLink) context.startActivity(res.intent)
+                if (res is SettingResult.DeepLink) {
+                    try { context.startActivity(res.intent) } catch (_: Exception) {}
+                }
             }
         )
     }
@@ -421,6 +400,58 @@ fun PersonalizationSettingsPage(
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Personalization", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+
+        // Wallpaper Presets
+        FluentCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Wallpaper & theme", fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
+                Text("Select from Windows 11 Fluent backgrounds", fontSize = 11.sp, color = colors.textSecondary)
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    WallpaperPreset.entries.forEach { preset ->
+                        val isSelected = userPreferences.wallpaperPreset == preset.id
+                        val brush = remember(preset) {
+                            Brush.verticalGradient(preset.colors.map { Color(it) })
+                        }
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(
+                                    width = if (isSelected) 3.dp else 1.dp,
+                                    color = if (isSelected) colors.accent else colors.borderSubtle,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable {
+                                    scope.launch { themeRepository.setWallpaperPreset(preset.id) }
+                                }
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(brush)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = preset.displayName,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (isSelected) colors.accent else colors.textPrimary,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         // Theme Mode (Light / Dark / System)
         FluentCard(modifier = Modifier.fillMaxWidth()) {
@@ -536,7 +567,9 @@ fun AppsSettingsPage(gateway: SystemSettingsGateway, context: Context) {
             icon = Icons.Default.Apps,
             onClick = {
                 val res = gateway.openDefaultAppsSettings()
-                if (res is SettingResult.DeepLink) context.startActivity(res.intent)
+                if (res is SettingResult.DeepLink) {
+                    try { context.startActivity(res.intent) } catch (_: Exception) {}
+                }
             }
         )
 
@@ -546,7 +579,9 @@ fun AppsSettingsPage(gateway: SystemSettingsGateway, context: Context) {
             icon = Icons.Default.OpenInNew,
             onClick = {
                 val res = gateway.openNotificationListenerSettings()
-                if (res is SettingResult.DeepLink) context.startActivity(res.intent)
+                if (res is SettingResult.DeepLink) {
+                    try { context.startActivity(res.intent) } catch (_: Exception) {}
+                }
             }
         )
     }
@@ -561,7 +596,7 @@ fun AboutSettingsPage() {
 
         FluentCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("FluentShell v1.0.0 (MVP)", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.textPrimary)
+                Text("FluentShell v0.1.2", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.textPrimary)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("Windows 11–style shell launcher designed for Android tablets.", fontSize = 12.sp, color = colors.textSecondary)
                 Spacer(modifier = Modifier.height(12.dp))
